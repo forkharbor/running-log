@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="logo.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ランニング継続カレンダー</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --sky-50: #f3fbff;
+      --sky-100: #eaf7ff;
+      --sky-150: #dff3fd;
+      --sky-200: #d6f1ff;
+      --sky-300: #b9e2f7;
+      --sky-500: #38a9dd;
+      --sky-600: #2da5dd;
+      --sky-700: #2385ba;
+      --ink: #193653;
+      --muted: #60839a;
+      --white: #ffffff;
+      --flower: #ee6286;
+      --flower-bg: #fff2f6;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--sky-100);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+    }
+
+    header {
+      background: var(--sky-200);
+      border-bottom: 1px solid var(--sky-300);
+      padding: 22px 18px 19px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #174a73;
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 7px;
+    }
+
+    main {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 16px 12px 28px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      background: var(--white);
+      border: 1px solid #caeaf9;
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(33, 111, 156, 0.08);
+      padding: 13px 10px;
+      text-align: center;
+    }
+
+    .stat-value {
+      color: var(--sky-700);
+      font-size: 1.65rem;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.76rem;
+      margin-top: 5px;
+    }
+
+    .calendar-card {
+      background: var(--white);
+      border: 1px solid #caeaf9;
+      border-radius: 18px;
+      box-shadow: 0 5px 18px rgba(33, 111, 156, 0.1);
+      padding: 14px 10px 13px;
+    }
+
+    .calendar-header {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .month-nav {
+      align-items: center;
+      display: flex;
+      gap: 5px;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      font: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .nav-button {
+      align-items: center;
+      background: #e0f4fd;
+      border-radius: 10px;
+      color: #276385;
+      display: inline-flex;
+      height: 38px;
+      justify-content: center;
+      width: 38px;
+    }
+
+    .month-label {
+      background: transparent;
+      border-radius: 10px;
+      color: #174a73;
+      font-size: 1.06rem;
+      font-weight: 700;
+      min-width: 126px;
+      padding: 8px 5px;
+      text-align: center;
+    }
+
+    .today-button {
+      background: #e0f4fd;
+      border-radius: 18px;
+      color: #276385;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 8px 12px;
+    }
+
+    .nav-button:active,
+    .month-label:active,
+    .today-button:active {
+      background: #ccecfb;
+    }
+
+    .weekdays,
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 4px;
+    }
+
+    .weekdays {
+      color: var(--muted);
+      font-size: 0.74rem;
+      margin-bottom: 5px;
+      text-align: center;
+    }
+
+    .weekdays .sun {
+      color: #e15c7a;
+    }
+
+    .weekdays .sat {
+      color: var(--sky-700);
+    }
+
+    .calendar-day {
+      align-items: center;
+      background: var(--sky-50);
+      border: 1px solid #d2eaf6;
+      border-radius: 11px;
+      color: #345773;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      height: 62px;
+      justify-content: flex-start;
+      padding: 5px 2px 3px;
+      position: relative;
+      width: 100%;
+    }
+
+    .calendar-day:active:not(.future) {
+      background: #e3f5fd;
+    }
+
+    .calendar-day.blank {
+      background: transparent;
+      border-color: transparent;
+      cursor: default;
+    }
+
+    .calendar-day.today {
+      border: 2px solid var(--sky-500);
+      padding-top: 4px;
+    }
+
+    .calendar-day.completed {
+      background: var(--flower-bg);
+      border-color: #f2cbd5;
+    }
+
+    .calendar-day.future {
+      color: #a4bccb;
+      cursor: default;
+      opacity: 0.68;
+    }
+
+    .calendar-day.sun .day-number {
+      color: #e15c7a;
+    }
+
+    .calendar-day.sat .day-number {
+      color: var(--sky-700);
+    }
+
+    .day-number {
+      align-self: flex-end;
+      font-size: 0.76rem;
+      line-height: 1;
+      margin-right: 5px;
+    }
+
+    .hanamaru {
+      color: var(--flower);
+      display: block;
+      font-size: 1.5rem;
+      line-height: 1;
+      margin-top: 3px;
+      transform: scale(0);
+      transition: transform 0.16s ease;
+    }
+
+    .calendar-day.completed .hanamaru {
+      transform: scale(1);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      margin-top: 13px;
+      text-align: center;
+    }
+
+    .today-action {
+      background: var(--sky-600);
+      border-radius: 13px;
+      color: #fff;
+      display: block;
+      font-size: 0.98rem;
+      font-weight: 700;
+      margin: 15px auto 0;
+      padding: 13px 16px;
+      width: 100%;
+    }
+
+    .today-action.done {
+      background: #ef7793;
+    }
+
+    .today-action:active {
+      filter: brightness(0.96);
+    }
+
+    .message {
+      color: var(--sky-700);
+      font-size: 0.84rem;
+      font-weight: 600;
+      min-height: 1.3em;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    @media (max-width: 360px) {
+      main {
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+
+      .calendar-card {
+        padding-left: 7px;
+        padding-right: 7px;
+      }
+
+      .calendar-grid,
+      .weekdays {
+        gap: 3px;
+      }
+
+      .calendar-day {
+        height: 57px;
+      }
+
+      .hanamaru {
+        font-size: 1.35rem;
+      }
+
+      .month-label {
+        min-width: 112px;
+        font-size: 0.98rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ランニング継続カレンダー</h1>
+    <p class="subtitle">走れた日に花丸をつけよう</p>
+  </header>
+
+  <main>
+    <section class="stats" aria-label="継続状況">
+      <div class="stat">
+        <div class="stat-value" id="stat-month">0</div>
+        <div class="stat-label">今月の花丸</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="stat-streak">0</div>
+        <div class="stat-label">連続達成日数</div>
+      </div>
+    </section>
+
+    <section class="calendar-card">
+      <div class="calendar-header">
+        <div class="month-nav">
+          <button type="button" class="nav-button" id="prev-month" aria-label="前の月">&lsaquo;</button>
+          <button type="button" class="month-label" id="month-label" aria-label="今月に戻る"></button>
+          <button type="button" class="nav-button" id="next-month" aria-label="次の月">&rsaquo;</button>
+        </div>
+        <button type="button" class="today-button" id="go-today">今日</button>
+      </div>
+
+      <div class="weekdays" aria-hidden="true">
+        <span class="sun">日</span><span>月</span><span>火</span><span>水</span>
+        <span>木</span><span>金</span><span class="sat">土</span>
+      </div>
+      <div id="calendar-grid" class="calendar-grid"></div>
+
+      <button type="button" class="today-action" id="today-action">今日、走れた！ 花丸をつける</button>
+      <p class="hint">カレンダーの日付をタップしても花丸を付けたり外したりできます。</p>
+      <p class="message" id="message" aria-live="polite"></p>
+    </section>
+  </main>
+
+  <script>
+    const MARKS_KEY = 'running_log_checkins';
+    const LEGACY_KEY = 'running_log_data';
+    const today = new Date();
+    const todayValue = formatDate(today);
+    let viewYear = today.getFullYear();
+    let viewMonth = today.getMonth();
+    let messageTimer;
+
+    function pad(value) {
+      return String(value).padStart(2, '0');
+    }
+
+    function formatDate(date) {
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    }
+
+    function loadMarks() {
+      const saved = localStorage.getItem(MARKS_KEY);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (error) {
+          return [];
+        }
+      }
+
+      let imported = [];
+      try {
+        const legacyRuns = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]');
+        imported = [...new Set(legacyRuns.map(run => run.date).filter(Boolean))];
+      } catch (error) {
+        imported = [];
+      }
+
+      saveMarks(imported);
+      return imported;
+    }
+
+    function saveMarks(marks) {
+      localStorage.setItem(MARKS_KEY, JSON.stringify([...new Set(marks)].sort()));
+    }
+
+    function hasMark(dateValue) {
+      return loadMarks().includes(dateValue);
+    }
+
+    function showMessage(text) {
+      const message = document.getElementById('message');
+      clearTimeout(messageTimer);
+      message.textContent = text;
+      messageTimer = setTimeout(() => {
+        message.textContent = '';
+      }, 1800);
+    }
+
+    function toggleMark(dateValue) {
+      if (dateValue > todayValue) return;
+      const marks = loadMarks();
+      const index = marks.indexOf(dateValue);
+      const added = index === -1;
+
+      if (added) {
+        marks.push(dateValue);
+      } else {
+        marks.splice(index, 1);
+      }
+
+      saveMarks(marks);
+      render();
+      showMessage(added ? '花丸！ 今日もよく続けました' : '花丸を外しました');
+    }
+
+    function getStreak(marks) {
+      const marked = new Set(marks);
+      const cursor = new Date(today);
+      if (!marked.has(todayValue)) {
+        cursor.setDate(cursor.getDate() - 1);
+      }
+
+      let streak = 0;
+      while (marked.has(formatDate(cursor))) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      return streak;
+    }
+
+    function renderStats(marks) {
+      const monthPrefix = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-`;
+      document.getElementById('stat-month').textContent =
+        marks.filter(date => date.startsWith(monthPrefix)).length;
+      document.getElementById('stat-streak').textContent = getStreak(marks);
+    }
+
+    function renderCalendar(marks) {
+      const marked = new Set(marks);
+      const grid = document.getElementById('calendar-grid');
+      const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+      const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      grid.innerHTML = '';
+      document.getElementById('month-label').textContent = `${viewYear}年 ${viewMonth + 1}月`;
+
+      for (let blank = 0; blank < firstDay; blank++) {
+        const space = document.createElement('span');
+        space.className = 'calendar-day blank';
+        grid.appendChild(space);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(viewYear, viewMonth, day);
+        const dateValue = formatDate(date);
+        const weekday = date.getDay();
+        const completed = marked.has(dateValue);
+        const future = dateValue > todayValue;
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'calendar-day'
+          + (weekday === 0 ? ' sun' : weekday === 6 ? ' sat' : '')
+          + (dateValue === todayValue ? ' today' : '')
+          + (completed ? ' completed' : '')
+          + (future ? ' future' : '');
+        cell.disabled = future;
+        cell.setAttribute('aria-label',
+          `${viewMonth + 1}月${day}日${completed ? ' 花丸済み。タップで解除' : '。タップで花丸'}`
+        );
+        cell.innerHTML = `<span class="day-number">${day}</span><span class="hanamaru" aria-hidden="true">💮</span>`;
+        cell.addEventListener('click', () => toggleMark(dateValue));
+        grid.appendChild(cell);
+      }
+    }
+
+    function renderTodayButton(marks) {
+      const button = document.getElementById('today-action');
+      const completed = marks.includes(todayValue);
+      button.classList.toggle('done', completed);
+      button.textContent = completed
+        ? '今日の花丸を外す'
+        : '今日、走れた！ 花丸をつける';
+    }
+
+    function render() {
+      const marks = loadMarks();
+      renderStats(marks);
+      renderCalendar(marks);
+      renderTodayButton(marks);
+    }
+
+    document.getElementById('prev-month').addEventListener('click', () => {
+      viewMonth--;
+      if (viewMonth < 0) {
+        viewMonth = 11;
+        viewYear--;
+      }
+      render();
+    });
+
+    document.getElementById('next-month').addEventListener('click', () => {
+      viewMonth++;
+      if (viewMonth > 11) {
+        viewMonth = 0;
+        viewYear++;
+      }
+      render();
+    });
+
+    function goToday() {
+      viewYear = today.getFullYear();
+      viewMonth = today.getMonth();
+      render();
+    }
+
+    document.getElementById('month-label').addEventListener('click', goToday);
+    document.getElementById('go-today').addEventListener('click', goToday);
+    document.getElementById('today-action').addEventListener('click', () => toggleMark(todayValue));
+
+    render();
+  </script>
+</body>
+</html>
