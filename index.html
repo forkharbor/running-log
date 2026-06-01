@@ -26,6 +26,8 @@
       --white: #ffffff;
       --flower: #ee6286;
       --flower-bg: #fff2f6;
+      --rain: #2772b8;
+      --hospital: #d95164;
     }
 
     body {
@@ -150,9 +152,48 @@
       padding: 8px 12px;
     }
 
+    .mode-picker {
+      background: var(--sky-50);
+      border: 1px solid #caeaf9;
+      border-radius: 13px;
+      display: grid;
+      gap: 5px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 12px;
+      padding: 5px;
+    }
+
+    .mode-button {
+      align-items: center;
+      background: transparent;
+      border-radius: 9px;
+      color: #276385;
+      display: flex;
+      font-size: 0.82rem;
+      font-weight: 700;
+      gap: 5px;
+      justify-content: center;
+      min-width: 0;
+      min-height: 36px;
+      padding: 7px 5px;
+      white-space: nowrap;
+    }
+
+    .mode-button .mode-icon {
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+
+    .mode-button.active {
+      background: var(--white);
+      box-shadow: 0 2px 8px rgba(35, 133, 186, 0.13);
+      color: #174a73;
+    }
+
     .nav-button:active,
     .month-label:active,
-    .today-button:active {
+    .today-button:active,
+    .mode-button:active {
       background: #ccecfb;
     }
 
@@ -187,7 +228,7 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
-      height: 62px;
+      height: 66px;
       justify-content: flex-start;
       padding: 5px 2px 3px;
       position: relative;
@@ -238,15 +279,45 @@
     .hanamaru {
       color: var(--flower);
       display: block;
-      font-size: 1.5rem;
+      font-size: 1.35rem;
       line-height: 1;
-      margin-top: 3px;
+      min-height: 1.35rem;
       transform: scale(0);
       transition: transform 0.16s ease;
     }
 
     .calendar-day.completed .hanamaru {
       transform: scale(1);
+    }
+
+    .daily-marks {
+      align-items: center;
+      display: flex;
+      gap: 2px;
+      justify-content: center;
+      min-height: 1rem;
+      width: 100%;
+    }
+
+    .daily-mark {
+      display: inline-flex;
+      font-size: 0.86rem;
+      line-height: 1;
+      transform: scale(0);
+      transition: transform 0.16s ease;
+    }
+
+    .calendar-day.rainy .rain-mark,
+    .calendar-day.sick .hospital-mark {
+      transform: scale(1);
+    }
+
+    .rain-mark {
+      color: var(--rain);
+    }
+
+    .hospital-mark {
+      color: var(--hospital);
     }
 
     .hint {
@@ -271,6 +342,14 @@
 
     .today-action.done {
       background: #ef7793;
+    }
+
+    .today-action.rain {
+      background: #317fbd;
+    }
+
+    .today-action.hospital {
+      background: #d95164;
     }
 
     .today-action:active {
@@ -303,11 +382,17 @@
       }
 
       .calendar-day {
-        height: 57px;
+        height: 61px;
       }
 
       .hanamaru {
-        font-size: 1.35rem;
+        font-size: 1.22rem;
+        min-height: 1.22rem;
+      }
+
+      .mode-button {
+        font-size: 0.76rem;
+        gap: 3px;
       }
 
       .month-label {
@@ -320,7 +405,7 @@
 <body>
   <header>
     <h1>ランニング継続カレンダー</h1>
-    <p class="subtitle">走れた日に花丸をつけよう</p>
+    <p class="subtitle">走れた日、雨の日、体調不良の日を残せます</p>
   </header>
 
   <main>
@@ -345,25 +430,44 @@
         <button type="button" class="today-button" id="go-today">今日</button>
       </div>
 
+      <div class="mode-picker" aria-label="付けるマーク">
+        <button type="button" class="mode-button active" data-mode="run">
+          <span class="mode-icon" aria-hidden="true">◎</span><span>走った</span>
+        </button>
+        <button type="button" class="mode-button" data-mode="rain">
+          <span class="mode-icon" aria-hidden="true">☔</span><span>雨</span>
+        </button>
+        <button type="button" class="mode-button" data-mode="hospital">
+          <span class="mode-icon" aria-hidden="true">🏥</span><span>病院</span>
+        </button>
+      </div>
+
       <div class="weekdays" aria-hidden="true">
         <span class="sun">日</span><span>月</span><span>火</span><span>水</span>
         <span>木</span><span>金</span><span class="sat">土</span>
       </div>
       <div id="calendar-grid" class="calendar-grid"></div>
 
-      <button type="button" class="today-action" id="today-action">今日、走れた！ 花丸をつける</button>
-      <p class="hint">カレンダーの日付をタップしても花丸を付けたり外したりできます。</p>
+      <button type="button" class="today-action" id="today-action">今日、走った◎を付ける</button>
+      <p class="hint">上のマークを選んでから、カレンダーの日付をタップしてください。</p>
       <p class="message" id="message" aria-live="polite"></p>
     </section>
   </main>
 
   <script>
     const MARKS_KEY = 'running_log_checkins';
+    const DETAIL_KEY = 'running_log_daily_marks';
     const LEGACY_KEY = 'running_log_data';
     const today = new Date();
     const todayValue = formatDate(today);
+    const modeLabels = {
+      run: { name: '走った', icon: '◎', add: '花丸を付けました', remove: '花丸を外しました' },
+      rain: { name: '雨', icon: '☔', add: '雨マークを付けました', remove: '雨マークを外しました' },
+      hospital: { name: '体調不良', icon: '🏥', add: '病院マークを付けました', remove: '病院マークを外しました' }
+    };
     let viewYear = today.getFullYear();
     let viewMonth = today.getMonth();
+    let activeMode = 'run';
     let messageTimer;
 
     function pad(value) {
@@ -374,34 +478,72 @@
       return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
     }
 
-    function loadMarks() {
+    function normalizeMarks(value) {
+      return [...new Set(Array.isArray(value) ? value.filter(Boolean) : [])].sort();
+    }
+
+    function loadLegacyRuns() {
+      try {
+        const legacyRuns = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]');
+        return normalizeMarks(legacyRuns.map(run => run.date));
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function loadRunMarks() {
       const saved = localStorage.getItem(MARKS_KEY);
       if (saved) {
         try {
-          return JSON.parse(saved);
+          return normalizeMarks(JSON.parse(saved));
         } catch (error) {
           return [];
         }
       }
 
-      let imported = [];
-      try {
-        const legacyRuns = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]');
-        imported = [...new Set(legacyRuns.map(run => run.date).filter(Boolean))];
-      } catch (error) {
-        imported = [];
-      }
-
-      saveMarks(imported);
+      const imported = loadLegacyRuns();
+      saveRunMarks(imported);
       return imported;
     }
 
-    function saveMarks(marks) {
-      localStorage.setItem(MARKS_KEY, JSON.stringify([...new Set(marks)].sort()));
+    function saveRunMarks(marks) {
+      localStorage.setItem(MARKS_KEY, JSON.stringify(normalizeMarks(marks)));
     }
 
-    function hasMark(dateValue) {
-      return loadMarks().includes(dateValue);
+    function emptyDetails() {
+      return {
+        rain: [],
+        hospital: []
+      };
+    }
+
+    function loadDetails() {
+      const saved = localStorage.getItem(DETAIL_KEY);
+      if (!saved) return emptyDetails();
+
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          rain: normalizeMarks(parsed.rain),
+          hospital: normalizeMarks(parsed.hospital)
+        };
+      } catch (error) {
+        return emptyDetails();
+      }
+    }
+
+    function saveDetails(details) {
+      localStorage.setItem(DETAIL_KEY, JSON.stringify({
+        rain: normalizeMarks(details.rain),
+        hospital: normalizeMarks(details.hospital)
+      }));
+    }
+
+    function loadState() {
+      return {
+        run: loadRunMarks(),
+        ...loadDetails()
+      };
     }
 
     function showMessage(text) {
@@ -413,21 +555,33 @@
       }, 1800);
     }
 
-    function toggleMark(dateValue) {
-      if (dateValue > todayValue) return;
-      const marks = loadMarks();
-      const index = marks.indexOf(dateValue);
+    function toggleInList(list, dateValue) {
+      const next = [...list];
+      const index = next.indexOf(dateValue);
       const added = index === -1;
 
       if (added) {
-        marks.push(dateValue);
+        next.push(dateValue);
       } else {
-        marks.splice(index, 1);
+        next.splice(index, 1);
       }
 
-      saveMarks(marks);
+      return {
+        added,
+        values: normalizeMarks(next)
+      };
+    }
+
+    function toggleMark(dateValue) {
+      if (dateValue > todayValue) return;
+      const state = loadState();
+      const result = toggleInList(state[activeMode], dateValue);
+      state[activeMode] = result.values;
+
+      saveRunMarks(state.run);
+      saveDetails(state);
       render();
-      showMessage(added ? '花丸！ 今日もよく続けました' : '花丸を外しました');
+      showMessage(modeLabels[activeMode][result.added ? 'add' : 'remove']);
     }
 
     function getStreak(marks) {
@@ -445,15 +599,27 @@
       return streak;
     }
 
-    function renderStats(marks) {
+    function renderStats(state) {
       const monthPrefix = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-`;
       document.getElementById('stat-month').textContent =
-        marks.filter(date => date.startsWith(monthPrefix)).length;
-      document.getElementById('stat-streak').textContent = getStreak(marks);
+        state.run.filter(date => date.startsWith(monthPrefix)).length;
+      document.getElementById('stat-streak').textContent = getStreak(state.run);
     }
 
-    function renderCalendar(marks) {
-      const marked = new Set(marks);
+    function describeDay(dateValue, month, day, state) {
+      const labels = [];
+      if (state.run.includes(dateValue)) labels.push('走った');
+      if (state.rain.includes(dateValue)) labels.push('雨');
+      if (state.hospital.includes(dateValue)) labels.push('体調不良');
+
+      const status = labels.length ? `。記録済み: ${labels.join('、')}` : '';
+      return `${month + 1}月${day}日${status}。タップで${modeLabels[activeMode].name}マークを切り替え`;
+    }
+
+    function renderCalendar(state) {
+      const marked = new Set(state.run);
+      const rain = new Set(state.rain);
+      const hospital = new Set(state.hospital);
       const grid = document.getElementById('calendar-grid');
       const firstDay = new Date(viewYear, viewMonth, 1).getDay();
       const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -471,6 +637,8 @@
         const dateValue = formatDate(date);
         const weekday = date.getDay();
         const completed = marked.has(dateValue);
+        const rainy = rain.has(dateValue);
+        const sick = hospital.has(dateValue);
         const future = dateValue > todayValue;
         const cell = document.createElement('button');
         cell.type = 'button';
@@ -478,31 +646,49 @@
           + (weekday === 0 ? ' sun' : weekday === 6 ? ' sat' : '')
           + (dateValue === todayValue ? ' today' : '')
           + (completed ? ' completed' : '')
+          + (rainy ? ' rainy' : '')
+          + (sick ? ' sick' : '')
           + (future ? ' future' : '');
         cell.disabled = future;
-        cell.setAttribute('aria-label',
-          `${viewMonth + 1}月${day}日${completed ? ' 花丸済み。タップで解除' : '。タップで花丸'}`
-        );
-        cell.innerHTML = `<span class="day-number">${day}</span><span class="hanamaru" aria-hidden="true">💮</span>`;
+        cell.setAttribute('aria-label', describeDay(dateValue, viewMonth, day, state));
+        cell.innerHTML = `
+          <span class="day-number">${day}</span>
+          <span class="hanamaru" aria-hidden="true">◎</span>
+          <span class="daily-marks" aria-hidden="true">
+            <span class="daily-mark rain-mark">☔</span>
+            <span class="daily-mark hospital-mark">🏥</span>
+          </span>
+        `;
         cell.addEventListener('click', () => toggleMark(dateValue));
         grid.appendChild(cell);
       }
     }
 
-    function renderTodayButton(marks) {
+    function renderModeButtons() {
+      document.querySelectorAll('.mode-button').forEach(button => {
+        button.classList.toggle('active', button.dataset.mode === activeMode);
+      });
+    }
+
+    function renderTodayButton(state) {
       const button = document.getElementById('today-action');
-      const completed = marks.includes(todayValue);
-      button.classList.toggle('done', completed);
-      button.textContent = completed
-        ? '今日の花丸を外す'
-        : '今日、走れた！ 花丸をつける';
+      const active = state[activeMode].includes(todayValue);
+      const label = modeLabels[activeMode];
+
+      button.classList.toggle('done', activeMode === 'run' && active);
+      button.classList.toggle('rain', activeMode === 'rain');
+      button.classList.toggle('hospital', activeMode === 'hospital');
+      button.textContent = active
+        ? `今日の${label.name}${label.icon}を外す`
+        : `今日、${label.name}${label.icon}を付ける`;
     }
 
     function render() {
-      const marks = loadMarks();
-      renderStats(marks);
-      renderCalendar(marks);
-      renderTodayButton(marks);
+      const state = loadState();
+      renderStats(state);
+      renderModeButtons();
+      renderCalendar(state);
+      renderTodayButton(state);
     }
 
     document.getElementById('prev-month').addEventListener('click', () => {
@@ -528,6 +714,13 @@
       viewMonth = today.getMonth();
       render();
     }
+
+    document.querySelectorAll('.mode-button').forEach(button => {
+      button.addEventListener('click', () => {
+        activeMode = button.dataset.mode;
+        render();
+      });
+    });
 
     document.getElementById('month-label').addEventListener('click', goToday);
     document.getElementById('go-today').addEventListener('click', goToday);
