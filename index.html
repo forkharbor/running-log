@@ -454,10 +454,24 @@
     </section>
   </main>
 
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script>
     const MARKS_KEY = 'running_log_checkins';
     const DETAIL_KEY = 'running_log_daily_marks';
     const LEGACY_KEY = 'running_log_data';
+    const firebaseConfig = {
+      apiKey: "AIzaSyCfvqQWLB8NJqmaH0k2G0wPcbJJjz2Vu4A",
+      authDomain: "kaimemo-58bad.firebaseapp.com",
+      projectId: "kaimemo-58bad",
+      storageBucket: "kaimemo-58bad.firebasestorage.app",
+      messagingSenderId: "308069117698",
+      appId: "1:308069117698:web:c61a57853abb7e8ffb1c1b"
+    };
+    const emptyState = () => ({ run: [], rain: [], hospital: [] });
+    let docRef = null;
+    let state = emptyState();
+    let remoteReady = false;
     const today = new Date();
     const todayValue = formatDate(today);
     const modeLabels = {
@@ -480,6 +494,14 @@
 
     function normalizeMarks(value) {
       return [...new Set(Array.isArray(value) ? value.filter(Boolean) : [])].sort();
+    }
+
+    function normalizeState(value = {}) {
+      return {
+        run: normalizeMarks(value.run),
+        rain: normalizeMarks(value.rain),
+        hospital: normalizeMarks(value.hospital)
+      };
     }
 
     function loadLegacyRuns() {
@@ -539,11 +561,36 @@
       }));
     }
 
-    function loadState() {
+    function loadLocalState() {
       return {
         run: loadRunMarks(),
         ...loadDetails()
       };
+    }
+
+    function hasAnyMarks(value) {
+      return ['run', 'rain', 'hospital'].some(key => Array.isArray(value[key]) && value[key].length > 0);
+    }
+
+    function saveLocalState(nextState) {
+      saveRunMarks(nextState.run);
+      saveDetails(nextState);
+    }
+
+    function saveState(nextState) {
+      state = normalizeState(nextState);
+      saveLocalState(state);
+
+      if (!docRef) return;
+
+      docRef.set({
+        run: state.run,
+        rain: state.rain,
+        hospital: state.hospital,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(error => {
+        console.error('Firestore save failed:', error);
+      });
     }
 
     function showMessage(text) {
@@ -574,12 +621,10 @@
 
     function toggleMark(dateValue) {
       if (dateValue > todayValue) return;
-      const state = loadState();
       const result = toggleInList(state[activeMode], dateValue);
       state[activeMode] = result.values;
 
-      saveRunMarks(state.run);
-      saveDetails(state);
+      saveState(state);
       render();
       showMessage(modeLabels[activeMode][result.added ? 'add' : 'remove']);
     }
@@ -684,11 +729,40 @@
     }
 
     function render() {
-      const state = loadState();
       renderStats(state);
       renderModeButtons();
       renderCalendar(state);
       renderTodayButton(state);
+    }
+
+    function initializeRemoteSync() {
+      if (!window.firebase) return;
+
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+
+        docRef = firebase.firestore().collection('data').doc('running-log');
+        docRef.onSnapshot(snapshot => {
+          const remoteState = snapshot.exists ? normalizeState(snapshot.data()) : emptyState();
+
+          if (!remoteReady && !hasAnyMarks(remoteState) && hasAnyMarks(state)) {
+            remoteReady = true;
+            saveState(state);
+            return;
+          }
+
+          remoteReady = true;
+          state = remoteState;
+          saveLocalState(state);
+          render();
+        }, error => {
+          console.error('Firestore sync failed:', error);
+        });
+      } catch (error) {
+        console.error('Firebase initialization failed:', error);
+      }
     }
 
     document.getElementById('prev-month').addEventListener('click', () => {
@@ -726,7 +800,9 @@
     document.getElementById('go-today').addEventListener('click', goToday);
     document.getElementById('today-action').addEventListener('click', () => toggleMark(todayValue));
 
+    state = normalizeState(loadLocalState());
     render();
+    initializeRemoteSync();
   </script>
 </body>
 </html>
