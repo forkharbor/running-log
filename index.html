@@ -28,6 +28,7 @@
       --flower-bg: #fff2f6;
       --rain: #2772b8;
       --hospital: #d95164;
+      --work: #2f8f68;
     }
 
     body {
@@ -158,7 +159,7 @@
       border-radius: 13px;
       display: grid;
       gap: 5px;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       margin-bottom: 12px;
       padding: 5px;
     }
@@ -308,7 +309,8 @@
     }
 
     .calendar-day.rainy .rain-mark,
-    .calendar-day.sick .hospital-mark {
+    .calendar-day.sick .hospital-mark,
+    .calendar-day.working .work-mark {
       transform: scale(1);
     }
 
@@ -318,6 +320,10 @@
 
     .hospital-mark {
       color: var(--hospital);
+    }
+
+    .work-mark {
+      color: var(--work);
     }
 
     .hint {
@@ -350,6 +356,10 @@
 
     .today-action.hospital {
       background: #d95164;
+    }
+
+    .today-action.work {
+      background: #2f8f68;
     }
 
     .today-action:active {
@@ -440,6 +450,9 @@
         <button type="button" class="mode-button" data-mode="hospital">
           <span class="mode-icon" aria-hidden="true">🏥</span><span>病院</span>
         </button>
+        <button type="button" class="mode-button" data-mode="work">
+          <span class="mode-icon" aria-hidden="true">💼</span><span>出勤</span>
+        </button>
       </div>
 
       <div class="weekdays" aria-hidden="true">
@@ -468,7 +481,7 @@
       messagingSenderId: "308069117698",
       appId: "1:308069117698:web:c61a57853abb7e8ffb1c1b"
     };
-    const emptyState = () => ({ run: [], rain: [], hospital: [] });
+    const emptyState = () => ({ run: [], rain: [], hospital: [], work: [] });
     let docRef = null;
     let state = emptyState();
     let remoteReady = false;
@@ -477,7 +490,8 @@
     const modeLabels = {
       run: { name: '走った', icon: '◎', add: '花丸を付けました', remove: '花丸を外しました' },
       rain: { name: '雨', icon: '☔', add: '雨マークを付けました', remove: '雨マークを外しました' },
-      hospital: { name: '体調不良', icon: '🏥', add: '病院マークを付けました', remove: '病院マークを外しました' }
+      hospital: { name: '体調不良', icon: '🏥', add: '病院マークを付けました', remove: '病院マークを外しました' },
+      work: { name: '出勤', icon: '💼', add: '出勤マークを付けました', remove: '出勤マークを外しました' }
     };
     let viewYear = today.getFullYear();
     let viewMonth = today.getMonth();
@@ -500,7 +514,8 @@
       return {
         run: normalizeMarks(value.run),
         rain: normalizeMarks(value.rain),
-        hospital: normalizeMarks(value.hospital)
+        hospital: normalizeMarks(value.hospital),
+        work: normalizeMarks(value.work)
       };
     }
 
@@ -535,7 +550,8 @@
     function emptyDetails() {
       return {
         rain: [],
-        hospital: []
+        hospital: [],
+        work: []
       };
     }
 
@@ -547,7 +563,8 @@
         const parsed = JSON.parse(saved);
         return {
           rain: normalizeMarks(parsed.rain),
-          hospital: normalizeMarks(parsed.hospital)
+          hospital: normalizeMarks(parsed.hospital),
+          work: normalizeMarks(parsed.work)
         };
       } catch (error) {
         return emptyDetails();
@@ -557,7 +574,8 @@
     function saveDetails(details) {
       localStorage.setItem(DETAIL_KEY, JSON.stringify({
         rain: normalizeMarks(details.rain),
-        hospital: normalizeMarks(details.hospital)
+        hospital: normalizeMarks(details.hospital),
+        work: normalizeMarks(details.work)
       }));
     }
 
@@ -569,7 +587,7 @@
     }
 
     function hasAnyMarks(value) {
-      return ['run', 'rain', 'hospital'].some(key => Array.isArray(value[key]) && value[key].length > 0);
+      return ['run', 'rain', 'hospital', 'work'].some(key => Array.isArray(value[key]) && value[key].length > 0);
     }
 
     function saveLocalState(nextState) {
@@ -587,6 +605,7 @@
         run: state.run,
         rain: state.rain,
         hospital: state.hospital,
+        work: state.work,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }).catch(error => {
         console.error('Firestore save failed:', error);
@@ -656,6 +675,7 @@
       if (state.run.includes(dateValue)) labels.push('走った');
       if (state.rain.includes(dateValue)) labels.push('雨');
       if (state.hospital.includes(dateValue)) labels.push('体調不良');
+      if (state.work.includes(dateValue)) labels.push('出勤');
 
       const status = labels.length ? `。記録済み: ${labels.join('、')}` : '';
       return `${month + 1}月${day}日${status}。タップで${modeLabels[activeMode].name}マークを切り替え`;
@@ -665,6 +685,7 @@
       const marked = new Set(state.run);
       const rain = new Set(state.rain);
       const hospital = new Set(state.hospital);
+      const work = new Set(state.work);
       const grid = document.getElementById('calendar-grid');
       const firstDay = new Date(viewYear, viewMonth, 1).getDay();
       const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -684,6 +705,7 @@
         const completed = marked.has(dateValue);
         const rainy = rain.has(dateValue);
         const sick = hospital.has(dateValue);
+        const working = work.has(dateValue);
         const future = dateValue > todayValue;
         const cell = document.createElement('button');
         cell.type = 'button';
@@ -693,6 +715,7 @@
           + (completed ? ' completed' : '')
           + (rainy ? ' rainy' : '')
           + (sick ? ' sick' : '')
+          + (working ? ' working' : '')
           + (future ? ' future' : '');
         cell.disabled = future;
         cell.setAttribute('aria-label', describeDay(dateValue, viewMonth, day, state));
@@ -702,6 +725,7 @@
           <span class="daily-marks" aria-hidden="true">
             <span class="daily-mark rain-mark">☔</span>
             <span class="daily-mark hospital-mark">🏥</span>
+            <span class="daily-mark work-mark">💼</span>
           </span>
         `;
         cell.addEventListener('click', () => toggleMark(dateValue));
@@ -723,6 +747,7 @@
       button.classList.toggle('done', activeMode === 'run' && active);
       button.classList.toggle('rain', activeMode === 'rain');
       button.classList.toggle('hospital', activeMode === 'hospital');
+      button.classList.toggle('work', activeMode === 'work');
       button.textContent = active
         ? `今日の${label.name}${label.icon}を外す`
         : `今日、${label.name}${label.icon}を付ける`;
