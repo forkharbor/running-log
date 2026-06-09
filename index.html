@@ -292,20 +292,20 @@
     }
 
     .daily-marks {
-      align-items: center;
-      display: flex;
-      gap: 2px;
-      justify-content: center;
+      display: grid;
+      height: 1.15rem;
       left: 50%;
+      place-items: center;
       position: absolute;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: max-content;
+      width: 1.15rem;
     }
 
     .daily-mark {
       display: inline-flex;
       font-size: 0.86rem;
+      grid-area: 1 / 1;
       line-height: 1;
       transform: scale(0);
       transition: transform 0.16s ease;
